@@ -255,6 +255,9 @@ class FfiModel with ChangeNotifier {
     } else if (type == 'restarting') {
       showMsgBox(id, type, title, text, link, false, dialogManager,
           hasCancel: false);
+    } else if (type == 'wait-remote-accept-nook') {
+      msgBoxCommon(dialogManager, title, Text(translate(text)),
+          [msgBoxButton("Cancel", closeConnection)]);
     } else {
       var hasRetry = evt['hasRetry'] == 'true';
       showMsgBox(id, type, title, text, link, hasRetry, dialogManager);
@@ -972,7 +975,7 @@ class CursorModel with ChangeNotifier {
     final image = await img.decodeImageFromPixels(
         rgba, width, height, ui.PixelFormat.rgba8888);
     _image = image;
-    if (await _updateCache(image, id, width, height)) {
+    if (await _updateCache(rgba, image, id, width, height)) {
       _images[id] = Tuple3(image, _hotx, _hoty);
     } else {
       _hotx = 0;
@@ -986,22 +989,25 @@ class CursorModel with ChangeNotifier {
     }
   }
 
-  Future<bool> _updateCache(ui.Image image, int id, int w, int h) async {
-    ui.ImageByteFormat imgFormat = ui.ImageByteFormat.png;
+  Future<bool> _updateCache(
+      Uint8List rgba, ui.Image image, int id, int w, int h) async {
+    Uint8List? data;
+    img2.Image? imgOrigin;
     if (Platform.isWindows) {
-      imgFormat = ui.ImageByteFormat.rawRgba;
+      imgOrigin = img2.Image.fromBytes(w, h, rgba, format: img2.Format.rgba);
+      data = imgOrigin.getBytes(format: img2.Format.bgra);
+    } else {
+      ByteData? imgBytes =
+          await image.toByteData(format: ui.ImageByteFormat.png);
+      if (imgBytes == null) {
+        return false;
+      }
+      data = imgBytes.buffer.asUint8List();
     }
-
-    ByteData? imgBytes = await image.toByteData(format: imgFormat);
-    if (imgBytes == null) {
-      return false;
-    }
-
-    Uint8List? data = imgBytes.buffer.asUint8List();
     _cache = CursorData(
       peerId: this.id,
       id: id,
-      image: Platform.isWindows ? img2.Image.fromBytes(w, h, data) : null,
+      image: imgOrigin,
       scale: 1.0,
       data: data,
       hotxOrigin: _hotx,

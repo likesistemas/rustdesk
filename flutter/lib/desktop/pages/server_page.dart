@@ -304,7 +304,9 @@ class _CmHeaderState extends State<_CmHeader>
   void initState() {
     super.initState();
     _timer = Timer.periodic(Duration(seconds: 1), (_) {
-      if (!client.disconnected) _time.value = _time.value + 1;
+      if (client.authorized && !client.disconnected) {
+        _time.value = _time.value + 1;
+      }
     });
   }
 
@@ -358,12 +360,15 @@ class _CmHeaderState extends State<_CmHeader>
               FittedBox(
                   child: Row(
                 children: [
-                  Text(client.disconnected
-                          ? translate("Disconnected")
-                          : translate("Connected"))
+                  Text(client.authorized
+                          ? client.disconnected
+                              ? translate("Disconnected")
+                              : translate("Connected")
+                          : "${translate("Request access to your device")}...")
                       .marginOnly(right: 8.0),
-                  Obx(() => Text(
-                      formatDurationToTime(Duration(seconds: _time.value))))
+                  if (client.authorized)
+                    Obx(() => Text(
+                        formatDurationToTime(Duration(seconds: _time.value))))
                 ],
               ))
             ],
@@ -555,11 +560,12 @@ class _CmControlPanel extends StatelessWidget {
     final bool canElevate = bind.cmCanElevate();
     final model = Provider.of<ServerModel>(context);
     final showElevation = canElevate && model.showElevation;
+    final showAccept = model.approveMode != 'password';
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         Offstage(
-          offstage: !showElevation,
+          offstage: !showElevation || !showAccept,
           child: buildButton(context, color: Colors.green[700], onClick: () {
             handleAccept(context);
             handleElevate(context);
@@ -575,11 +581,17 @@ class _CmControlPanel extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Expanded(
-                child: buildButton(context, color: MyTheme.accent, onClick: () {
-              handleAccept(context);
-              windowManager.minimize();
-            }, text: 'Accept', textColor: Colors.white)),
+            if (showAccept)
+              Expanded(
+                child: Column(
+                  children: [
+                    buildButton(context, color: MyTheme.accent, onClick: () {
+                      handleAccept(context);
+                      windowManager.minimize();
+                    }, text: 'Accept', textColor: Colors.white),
+                  ],
+                ),
+              ),
             Expanded(
                 child: buildButton(context,
                     color: Colors.transparent,
@@ -621,7 +633,7 @@ class _CmControlPanel extends StatelessWidget {
       );
     }
     return Container(
-      height: 35,
+      height: 30,
       decoration: BoxDecoration(
           color: color, borderRadius: BorderRadius.circular(4), border: border),
       child: InkWell(

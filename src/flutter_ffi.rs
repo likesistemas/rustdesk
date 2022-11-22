@@ -156,6 +156,7 @@ pub fn session_reconnect(id: String) {
 
 pub fn session_toggle_option(id: String, value: String) {
     if let Some(session) = SESSIONS.write().unwrap().get_mut(&id) {
+        log::warn!("toggle option {}", value);
         session.toggle_option(value);
     }
 }
@@ -562,7 +563,7 @@ pub fn main_get_connect_status() -> String {
 
 pub fn main_check_connect_status() {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    check_mouse_time(); // avoid multi calls
+    start_option_status_sync(); // avoid multi calls
 }
 
 pub fn main_is_using_public_server() -> bool {
@@ -907,6 +908,7 @@ pub fn session_send_mouse(id: String, msg: String) {
                 "down" => 1,
                 "up" => 2,
                 "wheel" => 3,
+                "trackpad" => 4,
                 _ => 0,
             };
         }
@@ -1178,6 +1180,7 @@ pub fn main_account_auth_result() -> String {
 }
 
 pub fn main_on_main_window_close() {
+    // may called more than one times
     #[cfg(windows)]
     crate::portable_service::client::drop_portable_service_shared_memory();
 }
