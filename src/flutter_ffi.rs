@@ -483,6 +483,10 @@ pub fn main_get_option(key: String) -> String {
     get_option(key)
 }
 
+pub fn main_get_error() -> String {
+    get_error()
+}
+
 pub fn main_set_option(key: String, value: String) {
     if key.eq("custom-rendezvous-server") {
         set_option(key, value);
@@ -525,6 +529,7 @@ pub fn main_get_app_name() -> String {
 pub fn main_get_app_name_sync() -> SyncReturn<String> {
     SyncReturn(get_app_name())
 }
+
 pub fn main_get_license() -> String {
     get_license()
 }
@@ -963,8 +968,22 @@ pub fn session_change_prefer_codec(id: String) {
     }
 }
 
-pub fn main_set_home_dir(home: String) {
-    *config::APP_HOME_DIR.write().unwrap() = home;
+pub fn main_set_home_dir(_home: String) {
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    {
+        *config::APP_HOME_DIR.write().unwrap() = _home;
+    }
+}
+
+// This is a temporary method to get data dir for ios
+pub fn main_get_data_dir_ios() -> SyncReturn<String> {
+    let data_dir = config::Config::path("data");
+    if !data_dir.exists() {
+        if let Err(e) = std::fs::create_dir_all(&data_dir) {
+            log::warn!("Failed to create data dir {}", e);
+        }
+    }
+    SyncReturn(data_dir.to_string_lossy().to_string())
 }
 
 pub fn main_stop_service() {
@@ -1187,6 +1206,14 @@ pub fn main_on_main_window_close() {
     // may called more than one times
     #[cfg(windows)]
     crate::portable_service::client::drop_portable_service_shared_memory();
+}
+
+pub fn main_current_is_wayland() -> SyncReturn<bool> {
+    SyncReturn(current_is_wayland())
+}
+
+pub fn main_is_login_wayland() -> SyncReturn<bool> {
+    SyncReturn(is_login_wayland())
 }
 
 #[cfg(target_os = "android")]
